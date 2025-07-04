@@ -154,20 +154,20 @@ struct PromptRowView: View {
                         Image(systemName: "doc.on.clipboard")
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .help("copy_to_clipboard")
+                    .help("复制到剪贴板")
                     
                     Button(action: onEdit) {
                         Image(systemName: "pencil")
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .help("edit_prompt")
+                    .help("编辑提示词")
                     
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(PlainButtonStyle())
                     .foregroundColor(.red)
-                    .help("delete_prompt")
+                    .help("删除提示词")
                 }
             }
             
@@ -177,6 +177,38 @@ struct PromptRowView: View {
                 .foregroundColor(.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
+            
+            // 图像预览
+            if !prompt.generatedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(prompt.generatedImages.prefix(3), id: \.id) { image in
+                            if let nsImage = NSImage(data: image.imageData) {
+                                Image(nsImage: nsImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 60, height: 60)
+                                    .clipped()
+                                    .cornerRadius(6)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                        }
+                        
+                        if prompt.generatedImages.count > 3 {
+                            Text("+\(prompt.generatedImages.count - 3)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 60, height: 60)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(6)
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+            }
             
             // 分类和用途标签
             HStack {
@@ -238,6 +270,7 @@ struct PromptRowView: View {
         case "purple": return .purple
         case "red": return .red
         case "pink": return .pink
+        case "indigo": return .indigo
         default: return .blue
         }
     }

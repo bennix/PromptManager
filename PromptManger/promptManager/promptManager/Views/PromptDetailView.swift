@@ -5,6 +5,8 @@ struct PromptDetailView: View {
     let prompt: Prompt
     @State private var showingEditPrompt = false
     @State private var showCopiedAlert = false
+    @State private var showingImagePreview = false
+    @State private var selectedImageForPreview: GeneratedImage?
     
     var body: some View {
         ScrollView {
@@ -14,6 +16,11 @@ struct PromptDetailView: View {
                 
                 // 内容区域
                 contentSection
+                
+                // 图像区域（如果有图像）
+                if !prompt.generatedImages.isEmpty {
+                    imagesSection
+                }
                 
                 // 分类和用途信息
                 categoryAndPurposeSection
@@ -46,7 +53,12 @@ struct PromptDetailView: View {
         .sheet(isPresented: $showingEditPrompt) {
             PromptEditView(promptManager: promptManager, prompt: prompt)
         }
-        .alert("copied", isPresented: $showCopiedAlert) {
+        .sheet(isPresented: $showingImagePreview) {
+            if let selectedImage = selectedImageForPreview {
+                ImagePreviewView(image: selectedImage)
+            }
+        }
+        .alert("已复制", isPresented: $showCopiedAlert) {
             Button("确定") { }
         }
     }
@@ -91,6 +103,51 @@ struct PromptDetailView: View {
                         .fill(Color(NSColor.textBackgroundColor))
                         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
                 )
+        }
+    }
+    
+    private var imagesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("生成的图像")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 120), spacing: 12)
+            ], spacing: 12) {
+                ForEach(prompt.generatedImages, id: \.id) { image in
+                    Button(action: {
+                        selectedImageForPreview = image
+                        showingImagePreview = true
+                    }) {
+                        VStack(spacing: 8) {
+                            if let nsImage = NSImage(data: image.imageData) {
+                                Image(nsImage: nsImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 120, height: 120)
+                                    .clipped()
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                            
+                            Text(image.fileName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .contextMenu {
+                        Button("删除", role: .destructive) {
+                            promptManager.removeImageFromPrompt(prompt, imageId: image.id)
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -213,6 +270,7 @@ struct PromptDetailView: View {
         case "purple": return .purple
         case "red": return .red
         case "pink": return .pink
+        case "indigo": return .indigo
         default: return .blue
         }
     }

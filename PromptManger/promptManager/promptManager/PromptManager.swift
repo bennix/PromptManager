@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 class PromptManager: ObservableObject {
     @Published var prompts: [Prompt] = []
@@ -80,6 +81,22 @@ class PromptManager: ObservableObject {
         saveData()
     }
     
+    // MARK: - 图像操作
+    func addImageToPrompt(_ prompt: Prompt, imageData: Data, fileName: String, description: String = "") {
+        let generatedImage = GeneratedImage(fileName: fileName, imageData: imageData, description: description)
+        var updatedPrompt = prompt
+        updatedPrompt.generatedImages.append(generatedImage)
+        updatedPrompt.lastModified = Date()
+        updatePrompt(updatedPrompt)
+    }
+    
+    func removeImageFromPrompt(_ prompt: Prompt, imageId: UUID) {
+        var updatedPrompt = prompt
+        updatedPrompt.generatedImages.removeAll { $0.id == imageId }
+        updatedPrompt.lastModified = Date()
+        updatePrompt(updatedPrompt)
+    }
+    
     // MARK: - 分类操作
     func addCategory(_ category: Category) {
         categories.append(category)
@@ -155,6 +172,103 @@ class PromptManager: ObservableObject {
         copyToClipboard(prompt.content)
     }
     
+    // MARK: - 导入导出功能
+    func exportData() -> URL? {
+        let exportData = ExportData(
+            prompts: prompts,
+            categories: categories,
+            purposes: purposes,
+            exportDate: Date()
+        )
+        
+        guard let jsonData = try? JSONEncoder().encode(exportData) else {
+            return nil
+        }
+        
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType.json]
+        panel.nameFieldStringValue = "PromptManager_Export_\(Date().timeIntervalSince1970).json"
+        panel.title = "导出提示词数据"
+        panel.message = "选择保存位置"
+        
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return nil
+        }
+        
+        do {
+            try jsonData.write(to: url)
+            
+            // 创建图像文件夹
+            let imagesFolder = url.deletingPathExtension().appendingPathComponent("images")
+            try FileManager.default.createDirectory(at: imagesFolder, withIntermediateDirectories: true)
+            
+            // 导出所有图像
+            for prompt in prompts {
+                for image in prompt.generatedImages {
+                    let imageUrl = imagesFolder.appendingPathComponent(image.fileName)
+                    try image.imageData.write(to: imageUrl)
+                }
+            }
+            
+            return url
+        } catch {
+            print("导出失败: \(error)")
+            return nil
+        }
+    }
+    
+    func importData() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.json]
+        panel.allowsMultipleSelection = false
+        panel.title = "导入提示词数据"
+        panel.message = "选择要导入的JSON文件"
+        
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+        
+        do {
+            let jsonData = try Data(contentsOf: url)
+            let importData = try JSONDecoder().decode(ExportData.self, from: jsonData)
+            
+            // 导入分类和用途
+            for category in importData.categories {
+                if !categories.contains(where: { $0.name == category.name }) {
+                    addCategory(category)
+                }
+            }
+            
+            for purpose in importData.purposes {
+                if !purposes.contains(where: { $0.name == purpose.name }) {
+                    addPurpose(purpose)
+                }
+            }
+            
+            // 导入提示词和图像
+            let imagesFolder = url.deletingPathExtension().appendingPathComponent("images")
+            
+            for prompt in importData.prompts {
+                var importedPrompt = prompt
+                
+                // 重新加载图像数据
+                if FileManager.default.fileExists(atPath: imagesFolder.path) {
+                    for i in importedPrompt.generatedImages.indices {
+                        let imageUrl = imagesFolder.appendingPathComponent(importedPrompt.generatedImages[i].fileName)
+                        if let imageData = try? Data(contentsOf: imageUrl) {
+                            importedPrompt.generatedImages[i].imageData = imageData
+                        }
+                    }
+                }
+                
+                addPrompt(importedPrompt)
+            }
+            
+        } catch {
+            print("导入失败: \(error)")
+        }
+    }
+    
     // MARK: - 示例数据
     private func addSampleData() {
         guard prompts.isEmpty else { return }
@@ -201,6 +315,13 @@ class PromptManager: ObservableObject {
                 category: .learning,
                 purpose: .summarization,
                 keywords: ["学习", "总结", "知识", "要点"]
+            ),
+            Prompt(
+                title: "AI图像生成提示词",
+                content: "请生成一张 [图像类型] 图像，要求：\n\n1. 风格：[艺术风格描述]\n2. 主题：[具体主题内容]\n3. 色彩：[色彩要求]\n4. 构图：[构图要求]\n5. 细节：[细节描述]\n\n请确保生成的图像：\n- 符合主题要求\n- 具有艺术美感\n- 细节丰富\n- 风格统一",
+                category: .artCreation,
+                purpose: .imageGeneration,
+                keywords: ["AI", "图像生成", "艺术", "创意"]
             )
         ]
         

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct PromptEditView: View {
     @ObservedObject var promptManager: PromptManager
@@ -9,6 +10,9 @@ struct PromptEditView: View {
     @State private var selectedCategory: Category = Category.writing
     @State private var selectedPurpose: Purpose = Purpose.chatbot
     @State private var keywordsText: String = ""
+    @State private var showingImagePicker = false
+    @State private var showingImagePreview = false
+    @State private var selectedImageForPreview: GeneratedImage?
     
     @Environment(\.presentationMode) var presentationMode
     
@@ -34,6 +38,11 @@ struct PromptEditView: View {
                     
                     // 用途和关键词区域
                     additionalInfoSection
+                    
+                    // 图像管理区域
+                    if selectedPurpose.id == Purpose.imageGeneration.id {
+                        imageManagementSection
+                    }
                 }
                 .padding(20)
             }
@@ -48,12 +57,24 @@ struct PromptEditView: View {
         .onAppear {
             setupForm()
         }
+        .fileImporter(
+            isPresented: $showingImagePicker,
+            allowedContentTypes: [.image],
+            allowsMultipleSelection: true
+        ) { result in
+            handleImageImport(result)
+        }
+        .sheet(isPresented: $showingImagePreview) {
+            if let selectedImage = selectedImageForPreview {
+                ImagePreviewView(image: selectedImage)
+            }
+        }
     }
     
     private var titleBar: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(isEditing ? "edit_prompt" : "new_prompt")
+                Text(isEditing ? "编辑提示词" : "新建提示词")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Text(isEditing ? "请修改提示词内容" : "请填写新提示词内容")
@@ -76,16 +97,16 @@ struct PromptEditView: View {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题输入
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("title", systemImage: "textformat")
+                    Label("标题", systemImage: "textformat")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    TextField("input_prompt_title", text: $title)
+                    TextField("请输入提示词标题", text: $title)
                         .textFieldStyle(.roundedBorder)
                         .font(.body)
                 }
                 // 内容输入
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("content", systemImage: "doc.text")
+                    Label("内容", systemImage: "doc.text")
                         .font(.headline)
                         .foregroundColor(.primary)
                     ZStack(alignment: .topLeading) {
@@ -116,7 +137,7 @@ struct PromptEditView: View {
     
     private var categorySection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionHeader(title: "category", icon: "folder")
+            SectionHeader(title: "分类", icon: "folder")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                 ForEach(promptManager.categories, id: \.id) { category in
                     CategorySelectionView(
@@ -138,10 +159,10 @@ struct PromptEditView: View {
             VStack(alignment: .leading, spacing: 16) {
                 // 用途选择
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("purpose", systemImage: "target")
+                    Label("用途", systemImage: "target")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    Picker("purpose", selection: $selectedPurpose) {
+                    Picker("用途", selection: $selectedPurpose) {
                         ForEach(promptManager.purposes, id: \.id) { purpose in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(purpose.name)
@@ -159,15 +180,72 @@ struct PromptEditView: View {
                 Divider()
                 // 关键词输入
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("keywords", systemImage: "number")
+                    Label("关键词", systemImage: "number")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    TextField("input_keywords_placeholder", text: $keywordsText)
+                    TextField("请输入关键词，用逗号分隔", text: $keywordsText)
                         .textFieldStyle(.roundedBorder)
                         .font(.body)
                     Text("多个关键词请用逗号分隔")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+            }
+            .padding(16)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(10)
+        }
+    }
+    
+    private var imageManagementSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader(title: "生成的图像", icon: "photo")
+            VStack(alignment: .leading, spacing: 12) {
+                // 添加图像按钮
+                Button(action: { showingImagePicker = true }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("添加图像")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // 图像预览
+                if let currentPrompt = prompt, !currentPrompt.generatedImages.isEmpty {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                        ForEach(currentPrompt.generatedImages, id: \.id) { image in
+                            Button(action: {
+                                selectedImageForPreview = image
+                                showingImagePreview = true
+                            }) {
+                                if let nsImage = NSImage(data: image.imageData) {
+                                    Image(nsImage: nsImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 80, height: 80)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                        )
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .contextMenu {
+                                Button("删除", role: .destructive) {
+                                    if let currentPrompt = prompt {
+                                        promptManager.removeImageFromPrompt(currentPrompt, imageId: image.id)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             .padding(16)
@@ -185,7 +263,7 @@ struct PromptEditView: View {
             .controlSize(.large)
             .keyboardShortcut(.escape, modifiers: [])
             Spacer()
-            Button(isEditing ? "save" : "create") {
+            Button(isEditing ? "保存" : "创建") {
                 savePrompt()
             }
             .buttonStyle(.borderedProminent)
@@ -213,6 +291,21 @@ struct PromptEditView: View {
             if let firstPurpose = promptManager.purposes.first {
                 selectedPurpose = firstPurpose
             }
+        }
+    }
+    
+    private func handleImageImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            for url in urls {
+                if let imageData = try? Data(contentsOf: url),
+                   let currentPrompt = prompt {
+                    let fileName = url.lastPathComponent
+                    promptManager.addImageToPrompt(currentPrompt, imageData: imageData, fileName: fileName)
+                }
+            }
+        case .failure(let error):
+            print("图像导入失败: \(error)")
         }
     }
     
@@ -246,6 +339,45 @@ struct PromptEditView: View {
         }
         
         presentationMode.wrappedValue.dismiss()
+    }
+}
+
+// 图像预览视图
+struct ImagePreviewView: View {
+    let image: GeneratedImage
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Text("图像预览")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                Spacer()
+                Button("关闭") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+            }
+            .padding()
+            
+            if let nsImage = NSImage(data: image.imageData) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
+            }
+            
+            if !image.description.isEmpty {
+                Text(image.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+            }
+        }
+        .frame(minWidth: 400, minHeight: 300)
+        .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
@@ -311,6 +443,7 @@ struct CategorySelectionView: View {
         case "purple": return .purple
         case "red": return .red
         case "pink": return .pink
+        case "indigo": return .indigo
         default: return .blue
         }
     }

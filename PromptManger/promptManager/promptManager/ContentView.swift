@@ -13,6 +13,8 @@ struct ContentView: View {
     @State private var selectedPurpose: Purpose?
     @State private var showingCategoryManagement = false
     @State private var showingPurposeManagement = false
+    @State private var showingExportSuccess = false
+    @State private var showingImportSuccess = false
     
     var body: some View {
         NavigationSplitView {
@@ -25,13 +27,23 @@ struct ContentView: View {
             // 详细视图
             detailView
         }
-        .navigationTitle("prompt_manager")
+        .navigationTitle("提示词管理器")
         .frame(minWidth: 900, minHeight: 600)
         .sheet(isPresented: $showingCategoryManagement) {
             CategoryManagementView(promptManager: promptManager)
         }
         .sheet(isPresented: $showingPurposeManagement) {
             PurposeManagementView(promptManager: promptManager)
+        }
+        .alert("导出成功", isPresented: $showingExportSuccess) {
+            Button("好的") { }
+        } message: {
+            Text("提示词数据已成功导出，包括所有图像文件")
+        }
+        .alert("导入成功", isPresented: $showingImportSuccess) {
+            Button("好的") { }
+        } message: {
+            Text("提示词数据已成功导入")
         }
     }
     
@@ -100,7 +112,7 @@ struct ContentView: View {
             }
         }
         .listStyle(SidebarListStyle())
-        .navigationTitle("prompt_manager")
+        .navigationTitle("提示词管理器")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Menu {
@@ -110,6 +122,16 @@ struct ContentView: View {
                     
                     Button("管理用途") {
                         showingPurposeManagement = true
+                    }
+                    
+                    Divider()
+                    
+                    Button("导出数据") {
+                        exportData()
+                    }
+                    
+                    Button("导入数据") {
+                        importData()
                     }
                     
                     Divider()
@@ -165,7 +187,9 @@ struct ContentView: View {
                     FeatureRow(icon: "doc.on.clipboard", text: "一键复制到剪贴板")
                     FeatureRow(icon: "folder", text: "分类和用途管理")
                     FeatureRow(icon: "globe", text: "多语言界面支持")
-        }
+                    FeatureRow(icon: "photo", text: "图像生成和管理")
+                    FeatureRow(icon: "square.and.arrow.up", text: "数据导入导出")
+                }
             }
             .padding()
             .background(
@@ -186,6 +210,17 @@ struct ContentView: View {
     
     private func promptCount(for purpose: Purpose) -> Int {
         return promptManager.prompts.filter { $0.purpose.id == purpose.id }.count
+    }
+    
+    private func exportData() {
+        if let _ = promptManager.exportData() {
+            showingExportSuccess = true
+        }
+    }
+    
+    private func importData() {
+        promptManager.importData()
+        showingImportSuccess = true
     }
 }
 
@@ -226,6 +261,7 @@ struct CategorySidebarRow: View {
         case "purple": return .purple
         case "red": return .red
         case "pink": return .pink
+        case "indigo": return .indigo
         default: return .blue
         }
     }
