@@ -52,7 +52,7 @@ struct ExportData: Codable {
 
 // MARK: - 类别模型
 struct Category: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
+    var id: String { name }
     var name: String
     var color: String // 存储颜色的名称
     var icon: String // SF Symbol 图标名
@@ -71,7 +71,7 @@ struct Category: Identifiable, Codable, Hashable {
 
 // MARK: - 用途模型
 struct Purpose: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
+    var id: String { name }
     var name: String
     var description: String
     

@@ -213,7 +213,7 @@ struct ContentView: View {
     }
     
     private func exportData() {
-        if let _ = promptManager.exportData() {
+        promptManager.exportData {
             showingExportSuccess = true
         }
     }

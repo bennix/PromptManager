@@ -10,6 +10,7 @@ struct PromptEditView: View {
     @State private var selectedCategory: Category = Category.writing
     @State private var selectedPurpose: Purpose = Purpose.chatbot
     @State private var keywordsText: String = ""
+    @State private var images: [GeneratedImage] = []
     @State private var showingImagePicker = false
     @State private var showingImagePreview = false
     @State private var selectedImageForPreview: GeneratedImage?
@@ -40,7 +41,7 @@ struct PromptEditView: View {
                     additionalInfoSection
                     
                     // 图像管理区域
-                    if selectedPurpose.id == Purpose.imageGeneration.id {
+                    if selectedPurpose.name == "影像生成" {
                         imageManagementSection
                     }
                 }
@@ -139,7 +140,7 @@ struct PromptEditView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeader(title: "分类", icon: "folder")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                ForEach(promptManager.categories, id: \.id) { category in
+                ForEach(promptManager.categories, id: \ .id) { category in
                     CategorySelectionView(
                         category: category,
                         isSelected: selectedCategory.id == category.id,
@@ -163,7 +164,7 @@ struct PromptEditView: View {
                         .font(.headline)
                         .foregroundColor(.primary)
                     Picker("用途", selection: $selectedPurpose) {
-                        ForEach(promptManager.purposes, id: \.id) { purpose in
+                        ForEach(promptManager.purposes, id: \ .id) { purpose in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(purpose.name)
                                     .font(.body)
@@ -216,9 +217,9 @@ struct PromptEditView: View {
                 .buttonStyle(PlainButtonStyle())
                 
                 // 图像预览
-                if let currentPrompt = prompt, !currentPrompt.generatedImages.isEmpty {
+                if !images.isEmpty {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                        ForEach(currentPrompt.generatedImages, id: \.id) { image in
+                        ForEach(images, id: \.id) { image in
                             Button(action: {
                                 selectedImageForPreview = image
                                 showingImagePreview = true
@@ -239,9 +240,7 @@ struct PromptEditView: View {
                             .buttonStyle(PlainButtonStyle())
                             .contextMenu {
                                 Button("删除", role: .destructive) {
-                                    if let currentPrompt = prompt {
-                                        promptManager.removeImageFromPrompt(currentPrompt, imageId: image.id)
-                                    }
+                                    images.removeAll { $0.id == image.id }
                                 }
                             }
                         }
@@ -280,9 +279,20 @@ struct PromptEditView: View {
         if let prompt = prompt {
             title = prompt.title
             content = prompt.content
-            selectedCategory = prompt.category
-            selectedPurpose = prompt.purpose
+            // 分类健壮性：找不到则选第一个
+            if let matchedCategory = promptManager.categories.first(where: { $0.id == prompt.category.id }) {
+                selectedCategory = matchedCategory
+            } else if let firstCategory = promptManager.categories.first {
+                selectedCategory = firstCategory
+            }
+            // 用途健壮性：找不到则选第一个
+            if let matchedPurpose = promptManager.purposes.first(where: { $0.id == prompt.purpose.id }) {
+                selectedPurpose = matchedPurpose
+            } else if let firstPurpose = promptManager.purposes.first {
+                selectedPurpose = firstPurpose
+            }
             keywordsText = prompt.keywords.joined(separator: ", ")
+            images = prompt.generatedImages
         } else {
             // 设置默认值
             if let firstCategory = promptManager.categories.first {
@@ -291,6 +301,7 @@ struct PromptEditView: View {
             if let firstPurpose = promptManager.purposes.first {
                 selectedPurpose = firstPurpose
             }
+            images = []
         }
     }
     
@@ -298,10 +309,10 @@ struct PromptEditView: View {
         switch result {
         case .success(let urls):
             for url in urls {
-                if let imageData = try? Data(contentsOf: url),
-                   let currentPrompt = prompt {
+                if let imageData = try? Data(contentsOf: url) {
                     let fileName = url.lastPathComponent
-                    promptManager.addImageToPrompt(currentPrompt, imageData: imageData, fileName: fileName)
+                    let newImage = GeneratedImage(fileName: fileName, imageData: imageData)
+                    images.append(newImage)
                 }
             }
         case .failure(let error):
@@ -323,7 +334,7 @@ struct PromptEditView: View {
             updatedPrompt.category = selectedCategory
             updatedPrompt.purpose = selectedPurpose
             updatedPrompt.keywords = keywords
-            
+            updatedPrompt.generatedImages = images
             promptManager.updatePrompt(updatedPrompt)
         } else {
             // 创建新提示词
@@ -332,9 +343,9 @@ struct PromptEditView: View {
                 content: content.trimmingCharacters(in: .whitespacesAndNewlines),
                 category: selectedCategory,
                 purpose: selectedPurpose,
-                keywords: keywords
+                keywords: keywords,
+                generatedImages: images
             )
-            
             promptManager.addPrompt(newPrompt)
         }
         

@@ -17,6 +17,14 @@ class PromptManager: ObservableObject {
     
     init() {
         loadData()
+        // 自动补全“艺术创作”分类
+        if !categories.contains(where: { $0.name == "艺术创作" }) {
+            categories.append(Category.artCreation)
+        }
+        // 自动补全“影像生成”用途
+        if !purposes.contains(where: { $0.name == "影像生成" }) {
+            purposes.append(Purpose.imageGeneration)
+        }
         addSampleData()
     }
     
@@ -173,7 +181,21 @@ class PromptManager: ObservableObject {
     }
     
     // MARK: - 导入导出功能
-    func exportData() -> URL? {
+    func exportData(completion: (() -> Void)? = nil) {
+        DispatchQueue.main.async {
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [UTType.json]
+            panel.nameFieldStringValue = "PromptManager_Export_\(Date().timeIntervalSince1970).json"
+            panel.title = "导出提示词数据"
+            panel.message = "选择保存位置"
+            
+            if panel.runModal() == .OK, let url = panel.url {
+                self.performExport(to: url, completion: completion)
+            }
+        }
+    }
+    
+    private func performExport(to url: URL, completion: (() -> Void)? = nil) {
         let exportData = ExportData(
             prompts: prompts,
             categories: categories,
@@ -181,39 +203,43 @@ class PromptManager: ObservableObject {
             exportDate: Date()
         )
         
-        guard let jsonData = try? JSONEncoder().encode(exportData) else {
-            return nil
-        }
-        
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [UTType.json]
-        panel.nameFieldStringValue = "PromptManager_Export_\(Date().timeIntervalSince1970).json"
-        panel.title = "导出提示词数据"
-        panel.message = "选择保存位置"
-        
-        guard panel.runModal() == .OK, let url = panel.url else {
-            return nil
-        }
-        
         do {
+            guard let jsonData = try? JSONEncoder().encode(exportData) else {
+                print("[导出] JSON 编码失败")
+                return
+            }
             try jsonData.write(to: url)
+            print("[导出] JSON 数据写入成功: \(url.path)")
             
             // 创建图像文件夹
             let imagesFolder = url.deletingPathExtension().appendingPathComponent("images")
             try FileManager.default.createDirectory(at: imagesFolder, withIntermediateDirectories: true)
+            print("[导出] 图像文件夹创建成功: \(imagesFolder.path)")
             
             // 导出所有图像
             for prompt in prompts {
                 for image in prompt.generatedImages {
                     let imageUrl = imagesFolder.appendingPathComponent(image.fileName)
-                    try image.imageData.write(to: imageUrl)
+                    if image.imageData.isEmpty {
+                        print("[导出] 跳过空图片: \(image.fileName)")
+                        continue
+                    }
+                    do {
+                        try image.imageData.write(to: imageUrl)
+                        print("[导出] 图片写入成功: \(imageUrl.lastPathComponent)")
+                    } catch {
+                        print("[导出] 图片写入失败: \(imageUrl.lastPathComponent) 错误: \(error)")
+                    }
                 }
             }
-            
-            return url
+            // 写入成功后主线程回调
+            if let completion = completion {
+                DispatchQueue.main.async {
+                    completion()
+                }
+            }
         } catch {
-            print("导出失败: \(error)")
-            return nil
+            print("[导出] 导出失败: \(error)")
         }
     }
     

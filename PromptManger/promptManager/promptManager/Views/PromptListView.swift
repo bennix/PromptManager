@@ -178,35 +178,31 @@ struct PromptRowView: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
             
-            // 图像预览
-            if !prompt.generatedImages.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(prompt.generatedImages.prefix(3), id: \.id) { image in
-                            if let nsImage = NSImage(data: image.imageData) {
-                                Image(nsImage: nsImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 60, height: 60)
-                                    .clipped()
-                                    .cornerRadius(6)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                    )
-                            }
-                        }
-                        
-                        if prompt.generatedImages.count > 3 {
-                            Text("+\(prompt.generatedImages.count - 3)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 60, height: 60)
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(6)
+            // 图像缩略图预览
+            if prompt.category.name == "艺术创作", !prompt.generatedImages.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(prompt.generatedImages.prefix(3), id: \.id) { image in
+                        if let nsImage = NSImage(data: image.imageData) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 40, height: 40)
+                                .clipped()
+                                .cornerRadius(4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                )
                         }
                     }
-                    .padding(.horizontal, 1)
+                    if prompt.generatedImages.count > 3 {
+                        Text("+\(prompt.generatedImages.count - 3)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(width: 40, height: 40)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(4)
+                    }
                 }
             }
             
