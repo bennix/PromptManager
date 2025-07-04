@@ -1,0 +1,52 @@
+{
+  "diskImage" : {
+    "autoopen" : true,
+    "background" : {
+      "color" : "{1.000000, 1.000000, 1.000000, 1.000000}",
+      "layoutObjects" : [
+
+      ],
+      "type" : 1
+    },
+    "iconPreviewVisible" : false,
+    "iconSize" : 48,
+    "itemInfoVisible" : false,
+    "labelPosition" : 0,
+    "licenses" : [
+
+    ],
+    "nameFontSize" : 12,
+    "statusBarVisible" : false,
+    "suggestedDiskImageName" : "Relase 1.2.dmg",
+    "toolbarVisible" : false,
+    "uid" : "mihyddbvow",
+    "validationScheme" : 0,
+    "viewLayout" : 0,
+    "volumeName" : "提示词管理器 1.2",
+    "volumeSize" : 0,
+    "volumeSizeOption" : "Automatic",
+    "windowContentHeight" : 360,
+    "windowContents" : [
+      {
+        "filePath" : "\/Users\/nellertcai\/PromptManger\/提示词管理器 2025-07-05 06-20-05\/提示词管理器.app",
+        "iconSize" : 100,
+        "invisible" : false,
+        "isAnAlias" : false,
+        "location" : "{175, 204}",
+        "relativeFilePath" : "提示词管理器.app"
+      },
+      {
+        "filePath" : "\/Applications",
+        "iconSize" : 100,
+        "invisible" : false,
+        "isAnAlias" : true,
+        "location" : "{368, 219}",
+        "relativeFilePath" : "..\/..\/..\/..\/Applications"
+      }
+    ],
+    "windowContentWidth" : 600,
+    "windowLeft" : 200,
+    "windowTop" : 120
+  },
+  "version" : 4
+}

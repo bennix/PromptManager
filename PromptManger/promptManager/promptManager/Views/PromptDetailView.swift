@@ -53,10 +53,8 @@ struct PromptDetailView: View {
         .sheet(isPresented: $showingEditPrompt) {
             PromptEditView(promptManager: promptManager, prompt: prompt)
         }
-        .sheet(isPresented: $showingImagePreview) {
-            if let selectedImage = selectedImageForPreview {
-                ImagePreviewView(image: selectedImage)
-            }
+        .sheet(item: $selectedImageForPreview) { image in
+            ImagePreviewView(image: image)
         }
         .alert("已复制", isPresented: $showCopiedAlert) {
             Button("确定") { }

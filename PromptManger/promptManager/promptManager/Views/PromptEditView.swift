@@ -372,12 +372,29 @@ struct ImagePreviewView: View {
             }
             .padding()
             
+            // 调试：打印 imageData 长度
+            #if DEBUG
+            Text("数据长度：\(image.imageData.count) 字节")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            #endif
+            
             if let nsImage = NSImage(data: image.imageData) {
                 Image(nsImage: nsImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text("图片加载失败，请检查图片数据是否有效")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
             }
             
             if !image.description.isEmpty {
