@@ -1,5 +1,10 @@
 # 提示词管理器 (Prompt Manager)
 
+> **License / 许可:** Original code authored by bennix: **GPL-3.0-only**.
+> Upstream and third-party material retain their original terms and notices.
+> See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md) for the current licensing scope.
+
+
 一个功能完整的 macOS Swift 应用程序，用于管理和组织 AI 提示词。智能搜索和一键复制功能。
 
 ## ✨ 主要功能
